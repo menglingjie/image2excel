@@ -11,4 +11,4 @@ if [ ! -x .venv/bin/python ]; then
   uv pip install --python .venv/bin/python -r requirements.txt
 fi
 
-exec .venv/bin/python -m uvicorn app.main:app --host "$HOST" --port "$PORT" "$@"
+exec .venv/bin/python -m uvicorn image2excel_server:app --host "$HOST" --port "$PORT" "$@"
