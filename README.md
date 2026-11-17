@@ -79,6 +79,10 @@ curl -OJ http://127.0.0.1:8000/api/jobs/54e57be4f18f/download
 | `I2E_PADDLE_MAX_CANDIDATES` | `20000` | 文本框数量上限，Paddle 默认 1000 会把密表的表头挤掉 |
 | `I2E_MAX_UPLOAD_MB` | `20` | 单张图片上限 |
 | `I2E_MAX_FILES` | `10` | 单次上传张数上限 |
+| `I2E_JOB_TTL` | `21600` | 任务与上传文件保留时间（秒，默认 6 小时） |
+| `I2E_CLEANUP_INTERVAL` | `300` | 后台自动清理间隔（秒） |
+
+后台线程按间隔清理过期任务和 `storage/` 下的过期目录（包括服务重启前遗留的目录），无需等新上传触发。
 
 ## 代码结构
 

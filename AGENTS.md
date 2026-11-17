@@ -64,6 +64,6 @@ cd /data/workspace/image2excel
 - 环境变量全在 `app/config.py` 顶部读取，**import 时求值**：进程内改 `os.environ` 不生效，要重启。
 - README 的环境变量表不完整，**以 `app/config.py` 为准**（另有 `I2E_STORAGE_DIR`、`I2E_PADDLE_LANG`、`I2E_PADDLE_REC_BATCH`）。
 - `I2E_STORAGE_DIR`（默认 `storage/`）存放上传原图和导出的 xlsx，按 job id 分目录。
-- 任务状态只在进程内存（`app/main.py:jobs`，6 小时 TTL，且只在新任务到来时清理）。重启服务后旧 job id 失效，但 `storage/` 里的文件会留下。
+- 任务状态只在进程内存（`app/main.py:jobs`，`I2E_JOB_TTL` 默认 6 小时）。`lifespan` 启动的 `cleanup-worker` 线程每 `I2E_CLEANUP_INTERVAL` 秒（默认 300）自动清理过期任务，并扫描 `storage/` 删除无主/过期目录（含重启前遗留的）。`/api/convert` 里仍会顺带清一次内存中的过期任务。
 - 前端是单文件原生 JS（`app/static/index.html`），没有构建步骤，改 UI 直接改这个文件；它靠 `/api/engines`、`/api/convert`、`/api/jobs/{id}`、`/api/jobs/{id}/download` 四个接口。
 - 这个目录**不是 git 仓库**（没有 `.git`），提交/分支相关的事先问用户。

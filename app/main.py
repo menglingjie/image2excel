@@ -2,6 +2,7 @@ import shutil
 import threading
 import time
 import uuid
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -9,15 +10,21 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import ALLOWED_SUFFIXES, MAX_FILES, MAX_UPLOAD_MB, STATIC_DIR, STORAGE_DIR
+from .config import (
+    ALLOWED_SUFFIXES,
+    CLEANUP_INTERVAL_SECONDS,
+    JOB_TTL_SECONDS,
+    MAX_FILES,
+    MAX_UPLOAD_MB,
+    STATIC_DIR,
+    STORAGE_DIR,
+)
 from .excel import build_workbook
 from .extract import engines, extract_file
 
-app = FastAPI(title="图片转 Excel 服务", version="1.0.0")
-
 jobs: dict[str, "Job"] = {}
 jobs_lock = threading.Lock()
-JOB_TTL_SECONDS = 6 * 3600
+cleanup_stop = threading.Event()
 
 
 @dataclass
@@ -56,6 +63,44 @@ def cleanup_jobs() -> None:
         for job_id in stale:
             jobs.pop(job_id, None)
             shutil.rmtree(STORAGE_DIR / job_id, ignore_errors=True)
+
+
+def cleanup_storage() -> None:
+    now = time.time()
+    with jobs_lock:
+        active = set(jobs)
+    for path in STORAGE_DIR.iterdir():
+        if not path.is_dir() or path.name in active:
+            continue
+        try:
+            expired = now - path.stat().st_mtime > JOB_TTL_SECONDS
+        except OSError:
+            continue
+        if expired:
+            shutil.rmtree(path, ignore_errors=True)
+
+
+def cleanup_loop() -> None:
+    while not cleanup_stop.wait(CLEANUP_INTERVAL_SECONDS):
+        cleanup_jobs()
+        cleanup_storage()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    cleanup_stop.clear()
+    cleanup_jobs()
+    cleanup_storage()
+    thread = threading.Thread(target=cleanup_loop, name="cleanup-worker", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        cleanup_stop.set()
+        thread.join(timeout=5)
+
+
+app = FastAPI(title="图片转 Excel 服务", version="1.0.0", lifespan=lifespan)
 
 
 def process_job(job: Job, paths: list[Path]) -> None:

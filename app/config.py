@@ -7,6 +7,8 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 MAX_UPLOAD_MB = int(os.getenv("I2E_MAX_UPLOAD_MB", "20"))
 MAX_FILES = int(os.getenv("I2E_MAX_FILES", "10"))
+JOB_TTL_SECONDS = int(os.getenv("I2E_JOB_TTL", "21600"))
+CLEANUP_INTERVAL_SECONDS = max(1, int(os.getenv("I2E_CLEANUP_INTERVAL", "300")))
 
 PADDLE_ENABLED = os.getenv("I2E_PADDLE_ENABLED", "1") not in ("0", "false", "False")
 PADDLE_LANG = os.getenv("I2E_PADDLE_LANG", "ch")
