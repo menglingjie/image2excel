@@ -62,7 +62,7 @@ def process_job(job: Job, paths: list[Path]) -> None:
     try:
         results = []
         for path in paths:
-            results.append(extract_file(path, job.options.get("engine", "auto")))
+            results.append(extract_file(path, job.options.get("engine", "paddle")))
         job.files = results
         job.xlsx_bytes = build_workbook(results, job.options)
         job.status = "done"
@@ -82,7 +82,7 @@ def list_engines() -> dict:
 @app.post("/api/convert")
 def convert(
     files: list[UploadFile] = File(...),
-    engine: str = Form("auto"),
+    engine: str = Form("paddle"),
     merge_all: bool = Form(False),
     header: bool = Form(True),
     include_titles: bool = Form(True),
@@ -92,7 +92,7 @@ def convert(
         raise HTTPException(status_code=400, detail="没有收到文件")
     if len(files) > MAX_FILES:
         raise HTTPException(status_code=400, detail=f"一次最多上传 {MAX_FILES} 张图片")
-    if engine not in ("auto", "paddle", "local", "vision", "text"):
+    if engine not in ("auto", "paddle"):
         raise HTTPException(status_code=400, detail="未知的识别引擎")
 
     job_id = uuid.uuid4().hex[:12]

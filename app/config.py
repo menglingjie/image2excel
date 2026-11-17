@@ -7,13 +7,6 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 MAX_UPLOAD_MB = int(os.getenv("I2E_MAX_UPLOAD_MB", "20"))
 MAX_FILES = int(os.getenv("I2E_MAX_FILES", "10"))
-OCR_LANG = os.getenv("I2E_OCR_LANG", "chi_sim+eng")
-OCR_THREADS = int(os.getenv("I2E_OCR_THREADS", "4"))
-
-VISION_API_KEY = os.getenv("I2E_VISION_API_KEY", "")
-VISION_BASE_URL = os.getenv("I2E_VISION_BASE_URL", "https://api.openai.com/v1")
-VISION_MODEL = os.getenv("I2E_VISION_MODEL", "gpt-4o")
-VISION_TIMEOUT = int(os.getenv("I2E_VISION_TIMEOUT", "120"))
 
 PADDLE_ENABLED = os.getenv("I2E_PADDLE_ENABLED", "1") not in ("0", "false", "False")
 PADDLE_LANG = os.getenv("I2E_PADDLE_LANG", "ch")

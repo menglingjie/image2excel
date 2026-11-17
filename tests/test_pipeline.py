@@ -91,7 +91,7 @@ def check_engine(engine: str, strict: bool) -> int:
 
 
 def check_excel() -> int:
-    results = [extract_file(SAMPLES / name, "local") for name in EXPECTED]
+    results = [extract_file(SAMPLES / name, "paddle") for name in EXPECTED]
     data = build_workbook(results, {"header": True, "include_source": True})
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as handle:
         handle.write(data)
@@ -124,8 +124,6 @@ def main() -> int:
     build_samples()
     print("PaddleOCR 引擎:")
     failures = check_engine("paddle", strict=True)
-    print("Tesseract 引擎:")
-    failures += check_engine("local", strict=False)
     print("Excel 输出:")
     failures += check_excel()
     if failures:

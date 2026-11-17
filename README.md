@@ -2,18 +2,12 @@
 
 上传图片（截图、扫描件、报表照片），自动识别其中的表格并导出 `.xlsx`。
 
-服务跑在 FastAPI 上，带一个单页网页界面：拖图 → 选引擎 → 转换 → 预览 → 下载。
+服务跑在 FastAPI 上，带一个单页网页界面：拖图 → 转换 → 预览 → 下载。
 
 ## 识别引擎
 
-| 引擎 | 说明 | 准确率 |
-| --- | --- | --- |
-| `paddle`（默认） | PaddleOCR PP-StructureV3 版面分析 + OCR，再按文本框坐标 + 表格线重建网格 | 高，中英文都准，无边框表格也行 |
-| `local` | OpenCV 检测表格 + Tesseract 逐格 OCR，完全离线、依赖轻 | 中，有边框的规整表格可以，无边框表格会错列 |
-| `vision` | 走 OpenAI 兼容接口的多模态大模型 | 最高，但需要 API Key |
-| `text` | 只抽文字，不做表格结构 | 兜底 |
-
-`auto` 会按 `paddle → vision → local → text` 依次尝试，用第一个有结果的。
+只保留 **PaddleOCR**（PP-StructureV3 版面分析 + OCR，再按文本框坐标 + 表格线重建网格）：
+中英文都准，无边框表格也能还原；26 列 × 46 行、单元格只有 10px 高的密表也能完整还原。
 
 `paddle` 引擎的做法不是直接用 PP-StructureV3 输出的 HTML（密表上它会漏行、串列），而是：
 
@@ -23,13 +17,11 @@
 4. OCR 文本框按 y 聚类成行；
 5. 文本框落格，多行表头自动合并成一格。
 
-这样 26 列 × 46 行、单元格只有 10px 高的密表也能完整还原。
-
 ## 快速开始
 
 ```bash
 cd /data/workspace/image2excel
-./run.sh                 # 首次运行会自动建虚拟环境、装依赖、装 Tesseract
+./run.sh                 # 首次运行会自动建虚拟环境、装依赖
 PORT=8080 ./run.sh       # 换端口
 ```
 
@@ -48,7 +40,7 @@ PORT=8080 ./run.sh       # 换端口
 # 上传并转换
 curl -X POST http://127.0.0.1:8000/api/convert \
   -F "files=@a.png" -F "files=@b.png" \
-  -F "engine=auto" -F "header=true" -F "merge_all=false"
+  -F "engine=paddle" -F "header=true" -F "merge_all=false"
 # => {"id":"54e57be4f18f","status":"processing",...}
 
 # 轮询状态（带预览数据）
@@ -65,7 +57,7 @@ curl -OJ http://127.0.0.1:8000/api/jobs/54e57be4f18f/download
 | `GET /api/jobs/{id}` | 任务状态与识别结果（预览用） |
 | `GET /api/jobs/{id}/download` | 下载 `.xlsx` |
 
-上传参数：`engine`（`auto`/`paddle`/`local`/`vision`/`text`）、`header`（首行当表头）、
+上传参数：`engine`（`paddle`）、`header`（首行当表头）、
 `merge_all`（全部表格合到一个工作表）、`include_titles`、`include_source`。
 
 ## 导出的 Excel
@@ -80,15 +72,11 @@ curl -OJ http://127.0.0.1:8000/api/jobs/54e57be4f18f/download
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
-| `I2E_PADDLE_ENABLED` | `1` | 关掉就只用 Tesseract 引擎 |
+| `I2E_PADDLE_ENABLED` | `1` | 关掉就不再识别（没有其它引擎兜底） |
 | `I2E_PADDLE_LAYOUT` | `PP-DocLayout-L` | 版面分析模型 |
 | `I2E_PADDLE_DET` / `I2E_PADDLE_REC` | `PP-OCRv5_mobile_det` / `PP-OCRv5_server_rec` | OCR 模型 |
 | `I2E_PADDLE_TARGET_SIDE` | `2560` | 检测时把图片长边缩放到多少像素（越小越快） |
 | `I2E_PADDLE_MAX_CANDIDATES` | `20000` | 文本框数量上限，Paddle 默认 1000 会把密表的表头挤掉 |
-| `I2E_OCR_LANG` | `chi_sim+eng` | Tesseract 语言 |
-| `I2E_VISION_API_KEY` | 空 | 配了就启用 `vision` 引擎 |
-| `I2E_VISION_BASE_URL` | `https://api.openai.com/v1` | 大模型接口地址 |
-| `I2E_VISION_MODEL` | `gpt-4o` | 大模型名 |
 | `I2E_MAX_UPLOAD_MB` | `20` | 单张图片上限 |
 | `I2E_MAX_FILES` | `10` | 单次上传张数上限 |
 
@@ -97,7 +85,7 @@ curl -OJ http://127.0.0.1:8000/api/jobs/54e57be4f18f/download
 ```
 app/
   main.py         FastAPI 服务（上传、任务、下载）
-  extract.py      引擎调度 + Tesseract / img2table 引擎
+  extract.py      识别入口（PaddleOCR 引擎调度）
   paddle_engine.py PaddleOCR 引擎（版面 + OCR + 网格重建）
   grid.py         文本框 → 行列聚类 → 表格网格（含多行表头合并）
   gridlines.py    表格竖线检测 → 列边界

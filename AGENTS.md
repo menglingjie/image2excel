@@ -9,12 +9,11 @@ cd /data/workspace/image2excel
 ./run.sh                       # 0.0.0.0:8000；PORT=8080 ./run.sh 可换端口
 ```
 
-`run.sh` 首次运行会 `uv venv --python 3.13` + 装 `requirements.txt` + `sudo apt-get install tesseract-ocr{,-eng,-chi-sim}`。
-依赖全在 `.venv`（Python 3.13）；系统层只需要 tesseract 二进制和中文字体（`NotoSansCJK` 等，见 `tests/make_samples.py:FONT_CANDIDATES`）。
+`run.sh` 首次运行会 `uv venv --python 3.13` + 装 `requirements.txt`。
+依赖全在 `.venv`（Python 3.13）；系统层只需要中文字体（`NotoSansCJK` 等，见 `tests/make_samples.py:FONT_CANDIDATES`）。
 
 - 8000 端口上通常已有 uvicorn 在跑（`ps aux | grep uvicorn`），重启前先 kill，否则端口冲突。
-- CLI：`.venv/bin/python -m app.cli 图片.png -o out.xlsx [--engine auto|local|vision|text] [--merge-all] [--no-header]`。
-  **CLI 的 `--engine` 没有 `paddle` 选项**（HTTP API 有）；`auto` 的第一顺位就是 paddle，所以直接用 `auto`。
+- CLI：`.venv/bin/python -m app.cli 图片.png -o out.xlsx [--merge-all] [--no-header]`。
   CLI 用相对 import，必须在仓库根目录运行。
 
 ## 测试
@@ -26,18 +25,18 @@ cd /data/workspace/image2excel
 ```
 
 - 它**每次都会重新生成** `tests/samples/*.png`（`tests/make_samples.py`），不要手改这些图。
-- 只有 `paddle` 是严格比对；`local` 是宽松的，而且**当前实际比对不上**（`WidgetA`、`1.25` vs `7.25`、`效量` vs `数量` 这类 Tesseract 误识），报 `~` 不算失败。
+- 只有 `paddle` 一个引擎，严格比对。
 - Excel 断言里有一条：任何单元格值都不能以 `=` 开头（防止公式注入）。
-- 只跑一个引擎：
+- 只跑引擎识别：
   ```bash
-  .venv/bin/python -c "import sys; sys.path.insert(0,'.'); from tests.test_pipeline import build_samples, check_engine; build_samples(); check_engine('local', False)"
+  .venv/bin/python -c "import sys; sys.path.insert(0,'.'); from tests.test_pipeline import build_samples, check_engine; build_samples(); check_engine('paddle', True)"
   ```
 
 ## 管线
 
 上传 → 落盘 `storage/<job_id>/` → 后台线程 `process_job`（`app/main.py`）→ `extract.extract_file(engine)` → `excel.build_workbook` → xlsx 字节先存在内存，`/download` 时才写盘。
 
-- 引擎调度在 `app/extract.py:extract_file`：`auto` = paddle → vision → local → text，取第一个有结果的；显式指定引擎时该引擎没结果就直接返回 error。
+- 引擎只有 `paddle` 一个：`app/extract.py:extract_file` 里固定走 PaddleOCR，`engine` 参数只作兼容保留。
 - `Table.rows` 是矩形 `list[list[str]]`（短行用 `""` 补齐），标题单独放 `Table.title`。API 返回、前端预览、Excel 导出都依赖这个形状——改 `models.py` 要同步三处。
 - **paddle 引擎不用 PP-StructureV3 的 HTML 表格结果**（密表上它会漏行串列），只取它的版面框 + OCR 文本框，然后自己重建网格：
   - 列边界 = `app/gridlines.py` 检测到的竖直表格线（这样能保住整列为空的列），没有线才退化为按 x 聚类；
@@ -63,7 +62,7 @@ cd /data/workspace/image2excel
 ## 配置与杂项
 
 - 环境变量全在 `app/config.py` 顶部读取，**import 时求值**：进程内改 `os.environ` 不生效，要重启。
-- README 的环境变量表不完整，**以 `app/config.py` 为准**（另有 `I2E_STORAGE_DIR`、`I2E_OCR_THREADS`、`I2E_PADDLE_LANG`、`I2E_PADDLE_REC_BATCH`、`I2E_VISION_TIMEOUT`）。
+- README 的环境变量表不完整，**以 `app/config.py` 为准**（另有 `I2E_STORAGE_DIR`、`I2E_PADDLE_LANG`、`I2E_PADDLE_REC_BATCH`）。
 - `I2E_STORAGE_DIR`（默认 `storage/`）存放上传原图和导出的 xlsx，按 job id 分目录。
 - 任务状态只在进程内存（`app/main.py:jobs`，6 小时 TTL，且只在新任务到来时清理）。重启服务后旧 job id 失效，但 `storage/` 里的文件会留下。
 - 前端是单文件原生 JS（`app/static/index.html`），没有构建步骤，改 UI 直接改这个文件；它靠 `/api/engines`、`/api/convert`、`/api/jobs/{id}`、`/api/jobs/{id}/download` 四个接口。

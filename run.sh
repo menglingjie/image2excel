@@ -11,11 +11,4 @@ if [ ! -x .venv/bin/python ]; then
   uv pip install --python .venv/bin/python -r requirements.txt
 fi
 
-if ! command -v tesseract >/dev/null 2>&1; then
-  echo "安装 Tesseract OCR…"
-  sudo apt-get update -qq
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    tesseract-ocr tesseract-ocr-eng tesseract-ocr-chi-sim
-fi
-
 exec .venv/bin/python -m uvicorn app.main:app --host "$HOST" --port "$PORT" "$@"

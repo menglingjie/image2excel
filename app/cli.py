@@ -10,7 +10,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="image2excel", description="把图片里的表格转换成 Excel")
     parser.add_argument("images", nargs="+", help="图片文件路径")
     parser.add_argument("-o", "--output", default="output.xlsx", help="输出 xlsx 路径")
-    parser.add_argument("-e", "--engine", default="auto", choices=["auto", "local", "vision", "text"])
+    parser.add_argument("-e", "--engine", default="paddle", choices=["paddle"], help="识别引擎（目前只有 PaddleOCR）")
     parser.add_argument("--merge-all", action="store_true", help="所有表格合并到一个工作表")
     parser.add_argument("--no-header", action="store_true", help="不把首行当表头")
     args = parser.parse_args(argv)
