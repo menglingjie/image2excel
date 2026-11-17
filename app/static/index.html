@@ -126,7 +126,6 @@
       <label><input type="checkbox" id="include_titles" checked /> 保留识别到的标题</label>
       <label><input type="checkbox" id="include_source" checked /> 标注来源文件</label>
     </div>
-    <div class="hint" id="engineInfo"></div>
     <div class="row" style="margin-top:18px">
       <button class="primary" id="go" disabled>开始转换</button>
       <span class="status" id="status"></span>
@@ -146,15 +145,6 @@
 <script>
 const state = { files: [], jobId: null };
 const $ = (id) => document.getElementById(id);
-
-async function loadEngines() {
-  const res = await fetch('/api/engines');
-  const { engines } = await res.json();
-  const info = $('engineInfo');
-  if (info) {
-    info.textContent = engines.map((e) => `${e.name}：${e.detail}`).join('　|　');
-  }
-}
 
 function renderThumbs() {
   const box = $('thumbs');
@@ -202,7 +192,6 @@ $('go').onclick = async () => {
   try {
     const fd = new FormData();
     state.files.forEach((f) => fd.append('files', f));
-    fd.append('engine', 'paddle');
     fd.append('merge_all', $('layout').value === 'merged');
     fd.append('header', $('header').checked);
     fd.append('include_titles', $('include_titles').checked);
@@ -252,7 +241,7 @@ function renderResult(job) {
     h.textContent = f.filename;
     const meta = document.createElement('div');
     meta.className = 'meta';
-    meta.innerHTML = `<span class="badge">PaddleOCR</span><span class="badge">${f.tables.length} 表</span>` +
+    meta.innerHTML = `<span class="badge">${f.tables.length} 表</span>` +
       (f.error ? `<span style="color:#f87171">${f.error}</span>` : '');
     block.append(h, meta);
     if (f.tables.length) {
