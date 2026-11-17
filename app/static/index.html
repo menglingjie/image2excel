@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>图片转 Excel</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #171d2c;
+    --panel-2: #1e2637;
+    --line: #2a3346;
+    --text: #e8ecf4;
+    --muted: #93a0b8;
+    --accent: #4f8cff;
+    --accent-2: #34d399;
+    --danger: #f87171;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  h1 { margin: 0; font-size: 22px; letter-spacing: .5px; }
+  header span { color: var(--muted); font-size: 13px; }
+  main { max-width: 1080px; margin: 0 auto; padding: 24px 20px 60px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .card h2 { margin: 0 0 14px; font-size: 15px; color: var(--muted); font-weight: 600; letter-spacing: .4px; }
+  #drop {
+    border: 1.5px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 34px 20px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    transition: .15s;
+  }
+  #drop:hover, #drop.over { border-color: var(--accent); background: rgba(79,140,255,.06); color: var(--text); }
+  #drop strong { color: var(--text); }
+  #thumbs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .thumb { position: relative; width: 108px; }
+  .thumb img { width: 108px; height: 82px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: #0b0f18; }
+  .thumb span { display: block; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px; }
+  .thumb button { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.6); border: none; color: #fff; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; line-height: 1; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  label.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+  select, input[type=text] {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 10px; font-size: 14px; font-family: inherit;
+  }
+  .checks { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--text); }
+  .checks label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button.primary {
+    background: var(--accent); color: #fff; border: none; border-radius: 9px;
+    padding: 11px 22px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost {
+    background: transparent; color: var(--text); border: 1px solid var(--line);
+    border-radius: 9px; padding: 10px 18px; font-size: 14px; cursor: pointer; font-family: inherit;
+  }
+  .status { font-size: 13px; color: var(--muted); }
+  .status.err { color: var(--danger); }
+  .status.ok { color: var(--accent-2); }
+  .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; max-height: 460px; }
+  table { border-collapse: collapse; font-size: 13px; width: 100%; }
+  th, td { border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); padding: 8px 12px; text-align: left; white-space: nowrap; }
+  th { background: #24406e; color: #eaf0fb; position: sticky; top: 0; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  th:last-child, td:last-child { border-right: none; }
+  .file-block { margin-bottom: 26px; }
+  .file-block h3 { margin: 0 0 4px; font-size: 15px; }
+  .file-block .meta { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); margin-right: 6px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  a.dl { text-decoration: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>图片转 Excel</h1>
+  <span>上传图片，自动识别表格并导出 .xlsx</span>
+</header>
+<main>
+  <div class="card">
+    <h2>1 · 选择图片</h2>
+    <div id="drop">
+      <strong>点击选择</strong> 或把图片拖到这里<br />
+      <span style="font-size:12px">支持 PNG / JPG / BMP / TIFF / WEBP，单张最大 20MB，一次最多 10 张</span>
+    </div>
+    <input type="file" id="picker" accept="image/*" multiple hidden />
+    <div id="thumbs"></div>
+  </div>
+
+  <div class="card">
+    <h2>2 · 识别选项</h2>
+    <div class="grid">
+      <label class="field">识别引擎
+        <select id="engine"></select>
+      </label>
+      <label class="field">导出结构
+        <select id="layout">
+          <option value="sheets">每张图片一个工作表</option>
+          <option value="merged">全部合并到一个工作表</option>
+        </select>
+      </label>
+    </div>
+    <div class="checks" style="margin-top:16px">
+      <label><input type="checkbox" id="header" checked /> 首行作为表头</label>
+      <label><input type="checkbox" id="include_titles" checked /> 保留识别到的标题</label>
+      <label><input type="checkbox" id="include_source" checked /> 标注来源文件</label>
+    </div>
+    <div class="hint" id="engineInfo"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="primary" id="go" disabled>开始转换</button>
+      <span class="status" id="status"></span>
+    </div>
+  </div>
+
+  <div class="card" id="result" hidden>
+    <h2>3 · 结果</h2>
+    <div class="row" style="margin-bottom:16px">
+      <button class="primary" id="download" disabled>下载 Excel</button>
+      <span class="status" id="sum"></span>
+    </div>
+    <div id="preview"></div>
+  </div>
+</main>
+
+<script>
+const state = { files: [], jobId: null };
+const $ = (id) => document.getElementById(id);
+
+async function loadEngines() {
+  const res = await fetch('/api/engines');
+  const { engines } = await res.json();
+  const sel = $('engine');
+  sel.innerHTML = '';
+  const auto = document.createElement('option');
+  auto.value = 'auto';
+  auto.textContent = '自动（推荐，按可用性择优）';
+  sel.appendChild(auto);
+  engines.forEach((e) => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = e.available ? e.name : `${e.name}（不可用）`;
+    opt.disabled = !e.available;
+    opt.title = e.detail;
+    sel.appendChild(opt);
+  });
+  const info = $('engineInfo');
+  if (info) info.textContent = engines.map((e) => `${e.name}：${e.detail}`).join('　|　');
+}
+
+function renderThumbs() {
+  const box = $('thumbs');
+  box.innerHTML = '';
+  state.files.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    const label = document.createElement('span');
+    label.textContent = f.name;
+    const del = document.createElement('button');
+    del.textContent = '×';
+    del.onclick = () => { state.files.splice(i, 1); renderThumbs(); };
+    div.append(img, label, del);
+    box.appendChild(div);
+  });
+  $('go').disabled = state.files.length === 0;
+}
+
+function addFiles(list) {
+  [...list].forEach((f) => {
+    if (!f.type.startsWith('image/')) return;
+    if (!state.files.some((x) => x.name === f.name && x.size === f.size)) state.files.push(f);
+  });
+  renderThumbs();
+}
+
+$('drop').onclick = () => $('picker').click();
+$('picker').onchange = (e) => addFiles(e.target.files);
+['dragenter', 'dragover'].forEach((ev) => $('drop').addEventListener(ev, (e) => {
+  e.preventDefault(); $('drop').classList.add('over');
+}));
+['dragleave', 'drop'].forEach((ev) => $('drop').addEventListener(ev, (e) => {
+  e.preventDefault(); $('drop').classList.remove('over');
+}));
+$('drop').addEventListener('drop', (e) => addFiles(e.dataTransfer.files));
+
+$('go').onclick = async () => {
+  const btn = $('go');
+  btn.disabled = true;
+  $('status').className = 'status';
+  $('status').textContent = '上传中…';
+  $('result').hidden = true;
+  try {
+    const fd = new FormData();
+    state.files.forEach((f) => fd.append('files', f));
+    fd.append('engine', $('engine').value);
+    fd.append('merge_all', $('layout').value === 'merged');
+    fd.append('header', $('header').checked);
+    fd.append('include_titles', $('include_titles').checked);
+    fd.append('include_source', $('include_source').checked);
+    const res = await fetch('/api/convert', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const job = await res.json();
+    state.jobId = job.id;
+    $('status').textContent = '识别中…';
+    await poll(job.id);
+  } catch (err) {
+    $('status').className = 'status err';
+    $('status').textContent = `失败：${err.message}`;
+    btn.disabled = false;
+  }
+};
+
+async function poll(id) {
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 900));
+    const res = await fetch(`/api/jobs/${id}`);
+    if (!res.ok) throw new Error('任务丢失');
+    const job = await res.json();
+    if (job.status === 'processing') continue;
+    if (job.status === 'error') throw new Error(job.error || '处理失败');
+    renderResult(job);
+    $('status').className = 'status ok';
+    $('status').textContent = '完成';
+    $('go').disabled = false;
+    return;
+  }
+}
+
+function renderResult(job) {
+  $('result').hidden = false;
+  $('sum').textContent = `${job.file_count} 个文件 · ${job.table_count} 个表格`;
+  $('download').disabled = false;
+  const box = $('preview');
+  box.innerHTML = '';
+  job.files.forEach((f) => {
+    const block = document.createElement('div');
+    block.className = 'file-block';
+    const h = document.createElement('h3');
+    h.textContent = f.filename;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.innerHTML = `<span class="badge">引擎 ${f.engine}</span><span class="badge">${f.tables.length} 表</span>` +
+      (f.error ? `<span style="color:#f87171">${f.error}</span>` : '');
+    block.append(h, meta);
+    if (f.tables.length) {
+      f.tables.forEach((t, i) => {
+        const label = document.createElement('div');
+        label.className = 'meta';
+        label.textContent = t.title ? `${t.title} (${t.rows.length}×${t.rows[0].length})` : `表 ${i + 1} (${t.rows.length}×${t.rows[0].length})`;
+        const wrap = document.createElement('div');
+        wrap.className = 'table-wrap';
+        const table = document.createElement('table');
+        t.rows.forEach((row, ri) => {
+          const tr = document.createElement('tr');
+          row.forEach((cell) => {
+            const td = document.createElement(ri === 0 ? 'th' : 'td');
+            td.textContent = cell;
+            tr.appendChild(td);
+          });
+          table.appendChild(tr);
+        });
+        wrap.appendChild(table);
+        block.append(label, wrap);
+      });
+    } else if (f.text) {
+      const pre = document.createElement('pre');
+      pre.style.cssText = 'white-space:pre-wrap;font-size:13px;color:#c9d4e6';
+      pre.textContent = f.text;
+      block.appendChild(pre);
+    }
+    box.appendChild(block);
+  });
+}
+
+$('download').onclick = () => {
+  if (!state.jobId) return;
+  window.location.href = `/api/jobs/${state.jobId}/download`;
+};
+
+loadEngines();
+</script>
+</body>
+</html>
